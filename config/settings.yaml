@@ -1,0 +1,56 @@
+# Microsoft 365エンドポイントトラッカー設定ファイル
+
+# 更新間隔（秒）
+update_interval: 3600  # 1時間
+
+# ログレベル (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+log_level: INFO
+
+# ホワイトリストファイルパス
+whitelist:
+  urls_file: "/etc/squid/whitelist.txt"
+  ips_file: "/etc/squid/whitelist_ips.txt"
+
+# フィルタリング設定
+filtering:
+  # 含めるカテゴリ (Optimize, Allow, Default)
+  include_categories:
+    - "Optimize"
+    - "Allow" 
+    - "Default"
+  
+  # 必須エンドポイントのみを含める
+  include_required_only: true
+  
+  # 除外するサービスエリア（必要に応じて）
+  exclude_service_areas: []
+    # - "Skype"
+    # - "Teams"
+
+# サービスエリアごとの設定
+service_areas:
+  # Exchange Online
+  exchange_online:
+    enabled: true
+    
+  # SharePoint Online and OneDrive for Business  
+  sharepoint_onedrive:
+    enabled: true
+    
+  # Microsoft Teams
+  teams:
+    enabled: true
+    
+  # Common/Office  
+  common:
+    enabled: true
+
+# 通知設定（将来の拡張用）
+notifications:
+  enabled: false
+  webhook_url: ""
+  
+# リトライ設定
+retry:
+  max_attempts: 3
+  delay_seconds: 5 

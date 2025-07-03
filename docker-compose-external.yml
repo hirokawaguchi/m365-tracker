@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  m365-tracker:
+    build: .
+    container_name: m365-tracker-external
+    volumes:
+      # 既設Squidの設定ディレクトリをマウント（パスを環境に合わせて調整）
+      - /etc/squid:/etc/squid
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - UPDATE_INTERVAL=3600  # 1時間ごとに更新
+      - LOG_LEVEL=INFO
+      - EXTERNAL_SQUID=true
+      - SQUID_RELOAD_METHOD=systemctl  # systemctl, service, docker, none
+    restart: unless-stopped
+    network_mode: "host"
+    # 権限設定（必要に応じて調整）
+    user: "root" 

@@ -1,0 +1,41 @@
+# 既設Squid用の設定例ファイル
+# この設定を既存のsquid.confに追加してください
+
+# Microsoft 365ホワイトリストACL定義
+acl m365_urls dstdomain '/etc/squid/whitelist.txt'
+acl m365_ips dst '/etc/squid/whitelist_ips.txt'
+
+# 必要なポートの定義（既存の設定がない場合）
+acl Safe_ports port 80
+acl Safe_ports port 443
+acl Safe_ports port 993   # IMAPS
+acl Safe_ports port 995   # POP3S
+
+# HTTPSメソッドの許可（既存の設定がない場合）
+acl CONNECT method CONNECT
+
+# ローカルネットワークの定義（既存の設定に合わせて調整）
+acl localnet src 10.0.0.0/8
+acl localnet src 172.16.0.0/12
+acl localnet src 192.168.0.0/16
+
+# Microsoft 365エンドポイントへのアクセスを許可
+# 注意: この行を既存のアクセス制御ルールの適切な位置に挿入してください
+http_access allow localnet m365_urls
+http_access allow localnet m365_ips
+
+# 既存のアクセス制御ルール
+# http_access allow localnet
+# http_access deny all
+
+# ログ設定の例（オプション）
+# access_log /var/log/squid/access.log squid
+# cache_log /var/log/squid/cache.log
+
+# キャッシュ設定の例（オプション）
+# cache_dir ufs /var/spool/squid 1000 16 256
+
+# ホワイトリストファイルが存在しない場合の対処
+# 初期化時に空ファイルを作成することを推奨:
+# touch /etc/squid/whitelist.txt
+# touch /etc/squid/whitelist_ips.txt 
