@@ -47,10 +47,17 @@ class M365EndpointTracker:
         
     def load_config(self):
         """設定を読み込み"""
+        # 外部Squidモードの場合は /etc/squid/ を使用、そうでなければ共有ボリュームのパスを使用
+        external_squid = os.getenv('EXTERNAL_SQUID', 'false').lower() == 'true'
+        if external_squid:
+            whitelist_base = '/etc/squid'
+        else:
+            whitelist_base = '/etc/squid/whitelist'
+            
         return {
             'update_interval': int(os.getenv('UPDATE_INTERVAL', 3600)),  # デフォルト1時間
-            'whitelist_urls_file': '/etc/squid/whitelist.txt',
-            'whitelist_ips_file': '/etc/squid/whitelist_ips.txt',
+            'whitelist_urls_file': f'{whitelist_base}/whitelist.txt',
+            'whitelist_ips_file': f'{whitelist_base}/whitelist_ips.txt',
             'include_categories': ['Optimize', 'Allow', 'Default'],  # 必要なカテゴリ
             'include_required_only': True,  # 必須エンドポイントのみ
         }
@@ -130,9 +137,59 @@ class M365EndpointTracker:
                         ips.add(str(network))
                     except ValueError:
                         self.logger.warning(f"無効なIP範囲: {ip_range}")
-                        
+        
+        # サブドメインの重複を除去
+        urls = self.remove_subdomain_duplicates(urls)
+        
         self.logger.info(f"抽出完了 - URLs: {len(urls)}, IPs: {len(ips)}")
         return urls, ips
+    
+    def remove_subdomain_duplicates(self, urls: Set[str]) -> Set[str]:
+        """サブドメインの重複を除去（親ドメインがあればサブドメインを削除）"""
+        # 正規化：完全一致ドメインとワイルドカードドメインの両方がある場合、ワイルドカードのみ残す
+        normalized = set()
+        for url in urls:
+            if url.startswith('.'):
+                # ワイルドカードドメイン（.example.com）
+                normalized.add(url)
+                # 対応する完全一致ドメインがあれば除去対象としてマーク
+            else:
+                # 完全一致ドメイン - 対応するワイルドカードがなければ追加
+                wildcard_version = f".{url}"
+                if wildcard_version not in urls:
+                    normalized.add(url)
+        
+        # ドメインをリストに変換してソート（短いドメインが先になる）
+        sorted_urls = sorted(normalized, key=lambda x: len(x))
+        result = set()
+        
+        for url in sorted_urls:
+            # このURLが既存のドメインのサブドメインかチェック
+            is_subdomain = False
+            for existing in result:
+                # 既存のドメインがワイルドカード形式（.で始まる）の場合
+                if existing.startswith('.'):
+                    # url が既存ドメインのサブドメインかチェック
+                    if url.endswith(existing):
+                        is_subdomain = True
+                        break
+                    # url が完全一致で、.url が existing と同じ場合
+                    if not url.startswith('.') and f".{url}" == existing:
+                        is_subdomain = True
+                        break
+                    # url が .xxx.example.com で existing が .example.com の場合
+                    if url.startswith('.') and url != existing and url.endswith(existing):
+                        is_subdomain = True
+                        break
+            
+            if not is_subdomain:
+                result.add(url)
+        
+        removed_count = len(urls) - len(result)
+        if removed_count > 0:
+            self.logger.info(f"サブドメイン重複除去: {removed_count} 件削除")
+        
+        return result
         
     def write_whitelist_files(self, urls: Set[str], ips: Set[str]):
         """ホワイトリストファイルを書き込み"""

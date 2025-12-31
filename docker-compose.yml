@@ -1,19 +1,18 @@
-version: '3.8'
-
 services:
   m365-tracker:
     build: .
     container_name: m365-tracker
     volumes:
-      - squid-config:/etc/squid
+      - whitelist-data:/etc/squid/whitelist
       - ./config:/app/config
       - ./logs:/app/logs
     environment:
-      - UPDATE_INTERVAL=3600  # 1時間ごとに更新
+      - UPDATE_INTERVAL=3600
       - LOG_LEVEL=INFO
     restart: unless-stopped
     depends_on:
-      - squid
+      squid:
+        condition: service_started
 
   squid:
     image: ubuntu/squid:latest
@@ -21,65 +20,31 @@ services:
     ports:
       - "3128:3128"
     volumes:
-      - squid-config:/etc/squid
+      - whitelist-data:/etc/squid/whitelist
+      - ./config/squid.conf:/etc/squid/squid.conf:ro
       - squid-cache:/var/spool/squid
       - squid-logs:/var/log/squid
     restart: unless-stopped
-    command: >
-      bash -c "
-        # squid.confが存在しない場合のデフォルト設定を作成
-        if [ ! -f /etc/squid/squid.conf ]; then
-          cat > /etc/squid/squid.conf << 'EOF'
-# Squid設定ファイル
-# ホワイトリストファイルを定義
-acl whitelist_urls dstdomain '/etc/squid/whitelist.txt'
-acl whitelist_ips dst '/etc/squid/whitelist_ips.txt'
-
-# ローカルネットワークを定義
-acl localnet src 10.0.0.0/8
-acl localnet src 172.16.0.0/12
-acl localnet src 192.168.0.0/16
-
-# 安全なポートを定義
-acl Safe_ports port 80
-acl Safe_ports port 443
-acl Safe_ports port 993
-acl Safe_ports port 995
-
-# HTTPSメソッドを許可
-acl CONNECT method CONNECT
-
-# アクセス制御ルール
-http_access deny !Safe_ports
-http_access deny CONNECT !Safe_ports
-http_access allow localnet whitelist_urls
-http_access allow localnet whitelist_ips
-http_access deny all
-
-# HTTPポート
-http_port 3128
-
-# キャッシュディレクトリ
-cache_dir ufs /var/spool/squid 100 16 256
-
-# ログレベル
-debug_options ALL,1
-
-# PIDファイル
-pid_filename /var/run/squid.pid
-EOF
-        fi
-        
-        # ホワイトリストファイルが存在しない場合は空ファイルを作成
-        touch /etc/squid/whitelist.txt
-        touch /etc/squid/whitelist_ips.txt
-        
-        # Squidを初期化して起動
-        squid -z
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        # ホワイトリストディレクトリとファイルの作成
+        mkdir -p /etc/squid/whitelist
+        touch /etc/squid/whitelist/whitelist.txt
+        touch /etc/squid/whitelist/whitelist_ips.txt
+        # Squid用ディレクトリの準備
+        mkdir -p /var/spool/squid /var/log/squid /var/run/squid
+        chown -R proxy:proxy /var/spool/squid /var/log/squid /var/run/squid /etc/squid/whitelist
+        # 既存のPIDファイルを削除
+        rm -f /var/run/squid/squid.pid
+        # Squidキャッシュディレクトリを初期化
+        squid -z 2>&1 || true
+        sleep 2
+        # Squidを起動
         exec squid -N -d 1
-      "
 
 volumes:
-  squid-config:
+  whitelist-data:
   squid-cache:
-  squid-logs: 
+  squid-logs:
