@@ -53,11 +53,22 @@ class M365EndpointTracker:
             whitelist_base = '/etc/squid'
         else:
             whitelist_base = '/etc/squid/whitelist'
-            
+
+        # 出力ファイル名は環境変数で上書き可能（既存 whitelist.txt を上書きしないため）。
+        # 既定は M365 専用ファイル名にして、他用途のホワイトリストと共存させる。
+        urls_file = os.getenv(
+            'WHITELIST_URLS_FILE',
+            f'{whitelist_base}/m365_whitelist.txt',
+        )
+        ips_file = os.getenv(
+            'WHITELIST_IPS_FILE',
+            f'{whitelist_base}/m365_whitelist_ips.txt',
+        )
+
         return {
             'update_interval': int(os.getenv('UPDATE_INTERVAL', 3600)),  # デフォルト1時間
-            'whitelist_urls_file': f'{whitelist_base}/whitelist.txt',
-            'whitelist_ips_file': f'{whitelist_base}/whitelist_ips.txt',
+            'whitelist_urls_file': urls_file,
+            'whitelist_ips_file': ips_file,
             'include_categories': ['Optimize', 'Allow', 'Default'],  # 必要なカテゴリ
             'include_required_only': True,  # 必須エンドポイントのみ
         }
@@ -101,6 +112,25 @@ class M365EndpointTracker:
             self.logger.error(f"エンドポイント取得エラー: {e}")
             return []
             
+    def normalize_domain(self, url: str) -> str:
+        """M365 の URL を Squid の dstdomain 形式へ正規化する。
+
+        - *.example.com          -> .example.com（サフィックス一致）
+        - *cdn.onenote.net       -> .onenote.net（中間ワイルドカードは丸める）
+        - autodiscover.*.foo.com -> .foo.com（最後の * 以降のドメインへ丸める）
+        - example.com            -> example.com（そのまま）
+
+        Squid の dstdomain はラベル途中のワイルドカードを表現できないため、
+        `*` を含む場合は最後の `*` より後ろのドメインサフィックスに丸める。
+        """
+        if '*' not in url:
+            return url
+        tail = url.split('*')[-1]
+        if tail.startswith('.'):
+            return tail
+        dot = tail.find('.')
+        return tail[dot:] if dot != -1 else f".{tail}"
+
     def extract_urls_and_ips(self, endpoints: List[Dict]) -> tuple[Set[str], Set[str]]:
         """エンドポイントからURLとIPアドレスを抽出"""
         urls = set()
@@ -120,13 +150,7 @@ class M365EndpointTracker:
             # URLを抽出
             if 'urls' in endpoint:
                 for url in endpoint['urls']:
-                    # ワイルドカードの処理
-                    if url.startswith('*.'):
-                        # *.example.com -> example.com (Squidではドットなしでワイルドカード対応)
-                        clean_url = url[2:]
-                        urls.add(f".{clean_url}")  # Squidのドメイン形式
-                    else:
-                        urls.add(url)
+                    urls.add(self.normalize_domain(url))
                         
             # IPアドレス範囲を抽出
             if 'ips' in endpoint:
