@@ -23,11 +23,17 @@ fi
 
 echo "Squid設定ディレクトリ: $SQUID_CONF_DIR"
 
-# ホワイトリストファイルの初期化
+# ホワイトリストファイルの初期化（既存ファイルは残し、M365用を追加）
 echo "ホワイトリストファイルを初期化します..."
 sudo touch "$SQUID_CONF_DIR/whitelist.txt"
 sudo touch "$SQUID_CONF_DIR/whitelist_ips.txt"
-sudo chown squid:squid "$SQUID_CONF_DIR/whitelist.txt" "$SQUID_CONF_DIR/whitelist_ips.txt" 2>/dev/null || true
+sudo touch "$SQUID_CONF_DIR/m365_whitelist.txt"
+sudo touch "$SQUID_CONF_DIR/m365_whitelist_ips.txt"
+sudo chown squid:squid \
+  "$SQUID_CONF_DIR/whitelist.txt" \
+  "$SQUID_CONF_DIR/whitelist_ips.txt" \
+  "$SQUID_CONF_DIR/m365_whitelist.txt" \
+  "$SQUID_CONF_DIR/m365_whitelist_ips.txt" 2>/dev/null || true
 
 # 設定ファイルのバックアップ
 if [ -f "$SQUID_CONF_DIR/squid.conf" ]; then

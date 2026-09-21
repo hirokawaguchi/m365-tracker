@@ -33,6 +33,8 @@ services:
         mkdir -p /etc/squid/whitelist
         touch /etc/squid/whitelist/whitelist.txt
         touch /etc/squid/whitelist/whitelist_ips.txt
+        touch /etc/squid/whitelist/m365_whitelist.txt
+        touch /etc/squid/whitelist/m365_whitelist_ips.txt
         # Squid用ディレクトリの準備
         mkdir -p /var/spool/squid /var/log/squid /var/run/squid
         chown -R proxy:proxy /var/spool/squid /var/log/squid /var/run/squid /etc/squid/whitelist
