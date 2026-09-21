@@ -23,7 +23,7 @@ Microsoft 365で使用されるURLとIPアドレス範囲を定期的に取得�
                                  │                        │
                          ┌───────▼────────┐    ┌──────────▼────────┐
                          │ whitelist.txt  │    │ Microsoft 365 API │
-                         │ whitelist_ips  │    │                   │
+                         │ + m365_*.txt   │    │                   │
                          └────────────────┘    └───────────────────┘
 ```
 
@@ -72,9 +72,13 @@ docker-compose logs -f squid
 既存の`squid.conf`に以下の設定を追加してください：
 
 ```squid
-# Microsoft 365ホワイトリストACL定義
-acl m365_urls dstdomain '/etc/squid/whitelist.txt'
-acl m365_ips dst '/etc/squid/whitelist_ips.txt'
+# 既存/手動ホワイトリスト（すでに定義済みなら追加不要）
+# acl whitelist_urls dstdomain '/etc/squid/whitelist.txt'
+# acl whitelist_ips dst '/etc/squid/whitelist_ips.txt'
+
+# Microsoft 365ホワイトリストACL定義（既存ファイルは上書きしない）
+acl m365_urls dstdomain '/etc/squid/m365_whitelist.txt'
+acl m365_ips dst '/etc/squid/m365_whitelist_ips.txt'
 
 # Microsoft 365エンドポイントへのアクセスを許可
 # 注意: 既存のアクセス制御ルールの適切な位置に挿入してください
@@ -140,6 +144,8 @@ Docker Composeで以下の環境変数を設定できます：
 
 - `UPDATE_INTERVAL`: 更新間隔（秒）（デフォルト: 3600 = 1時間）
 - `LOG_LEVEL`: ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+- `WHITELIST_URLS_FILE`: M365ドメインリストの出力先（既定: `.../m365_whitelist.txt`）
+- `WHITELIST_IPS_FILE`: M365 IPリストの出力先（既定: `.../m365_whitelist_ips.txt`）
 
 ### 設定ファイル
 
@@ -166,21 +172,29 @@ GET https://endpoints.office.com/version/worldwide?clientrequestid=<GUID>
 
 ## ホワイトリストファイル
 
-サービスは以下の2つのファイルを自動生成します：
+サービスは既存のホワイトリストを上書きせず、M365専用ファイルを自動生成します：
 
-- `/etc/squid/whitelist.txt`: ドメイン名のホワイトリスト
-- `/etc/squid/whitelist_ips.txt`: IPアドレス範囲のホワイトリスト
+- `/etc/squid/whitelist.txt`: 既存/手動のドメインホワイトリスト（上書きしない）
+- `/etc/squid/whitelist_ips.txt`: 既存/手動のIPホワイトリスト（上書きしない）
+- `/etc/squid/m365_whitelist.txt`: M365ドメインのホワイトリスト
+- `/etc/squid/m365_whitelist_ips.txt`: M365 IPアドレス範囲のホワイトリスト
+
+内蔵Squid構成では共有ボリューム配下（`/etc/squid/whitelist/`）に同じ4ファイルを置きます。
 
 ## Squid設定
 
 Squidコンテナは自動的に以下の設定で起動されます：
 
 ```squid
-acl whitelist_urls dstdomain '/etc/squid/whitelist.txt'
-acl whitelist_ips dst '/etc/squid/whitelist_ips.txt'
+acl whitelist_urls dstdomain '/etc/squid/whitelist/whitelist.txt'
+acl whitelist_ips dst '/etc/squid/whitelist/whitelist_ips.txt'
+acl m365_urls dstdomain '/etc/squid/whitelist/m365_whitelist.txt'
+acl m365_ips dst '/etc/squid/whitelist/m365_whitelist_ips.txt'
 
 http_access allow localnet whitelist_urls
 http_access allow localnet whitelist_ips
+http_access allow localnet m365_urls
+http_access allow localnet m365_ips
 ```
 
 ## カテゴリについて
@@ -256,10 +270,10 @@ docker-compose -f docker-compose-external.yml exec m365-tracker python src/main.
 1. **ホワイトリストファイルにアクセスできない**
    ```bash
    # ファイル権限を確認
-   ls -la /etc/squid/whitelist*.txt
+   ls -la /etc/squid/whitelist*.txt /etc/squid/m365_whitelist*.txt
    
    # 権限を修正
-   sudo chown squid:squid /etc/squid/whitelist*.txt
+   sudo chown squid:squid /etc/squid/whitelist*.txt /etc/squid/m365_whitelist*.txt
    ```
 
 2. **Squidの再読み込みが失敗する**

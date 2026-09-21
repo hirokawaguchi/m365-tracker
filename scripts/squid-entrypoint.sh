@@ -8,9 +8,12 @@ if [ ! -f /etc/squid/squid.conf ]; then
     echo "squid.confを作成しています..."
     cat > /etc/squid/squid.conf << 'SQUIDCONF'
 # Squid設定ファイル
-# ホワイトリストファイルを定義
+# 既存/手動ホワイトリスト（トラッカーは上書きしない）
 acl whitelist_urls dstdomain "/etc/squid/whitelist.txt"
 acl whitelist_ips dst "/etc/squid/whitelist_ips.txt"
+# M365トラッカー出力
+acl m365_urls dstdomain "/etc/squid/m365_whitelist.txt"
+acl m365_ips dst "/etc/squid/m365_whitelist_ips.txt"
 
 # ローカルネットワークを定義
 acl localnet src 10.0.0.0/8
@@ -31,6 +34,8 @@ http_access deny !Safe_ports
 http_access deny CONNECT !Safe_ports
 http_access allow localnet whitelist_urls
 http_access allow localnet whitelist_ips
+http_access allow localnet m365_urls
+http_access allow localnet m365_ips
 http_access deny all
 
 # HTTPポート
@@ -51,6 +56,8 @@ fi
 # ホワイトリストファイルが存在しない場合は空ファイルを作成
 touch /etc/squid/whitelist.txt
 touch /etc/squid/whitelist_ips.txt
+touch /etc/squid/m365_whitelist.txt
+touch /etc/squid/m365_whitelist_ips.txt
 
 echo "Squidキャッシュを初期化しています..."
 squid -z 2>/dev/null || true

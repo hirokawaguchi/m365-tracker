@@ -7,9 +7,11 @@ update_interval: 3600  # 1時間
 log_level: INFO
 
 # ホワイトリストファイルパス
+# 既存/手動用の whitelist.txt は上書きせず、M365 専用ファイルへ出力する。
+# Squid 側では両方を ACL として読み込む。
 whitelist:
-  urls_file: "/etc/squid/whitelist.txt"
-  ips_file: "/etc/squid/whitelist_ips.txt"
+  urls_file: "/etc/squid/m365_whitelist.txt"
+  ips_file: "/etc/squid/m365_whitelist_ips.txt"
 
 # フィルタリング設定
 filtering:

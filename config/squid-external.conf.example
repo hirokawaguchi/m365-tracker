@@ -1,9 +1,13 @@
 # 既設Squid用の設定例ファイル
 # この設定を既存のsquid.confに追加してください
 
-# Microsoft 365ホワイトリストACL定義
-acl m365_urls dstdomain '/etc/squid/whitelist.txt'
-acl m365_ips dst '/etc/squid/whitelist_ips.txt'
+# 既存/手動ホワイトリスト（すでに定義済みなら追加不要）
+# acl whitelist_urls dstdomain '/etc/squid/whitelist.txt'
+# acl whitelist_ips dst '/etc/squid/whitelist_ips.txt'
+
+# Microsoft 365ホワイトリストACL定義（トラッカー出力。既存ファイルは上書きしない）
+acl m365_urls dstdomain '/etc/squid/m365_whitelist.txt'
+acl m365_ips dst '/etc/squid/m365_whitelist_ips.txt'
 
 # 必要なポートの定義（既存の設定がない場合）
 acl Safe_ports port 80
@@ -38,4 +42,6 @@ http_access allow localnet m365_ips
 # ホワイトリストファイルが存在しない場合の対処
 # 初期化時に空ファイルを作成することを推奨:
 # touch /etc/squid/whitelist.txt
-# touch /etc/squid/whitelist_ips.txt 
+# touch /etc/squid/whitelist_ips.txt
+# touch /etc/squid/m365_whitelist.txt
+# touch /etc/squid/m365_whitelist_ips.txt 
